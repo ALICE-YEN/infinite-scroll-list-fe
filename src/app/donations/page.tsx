@@ -1,29 +1,69 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import axios from "axios";
 import List from "@/app/donations/components/List";
 import Tabs from "@/app/donations/components/Tabs";
 import Search from "@/app/donations/components/Search";
 import SubcategoryModal from "@/app/donations/components/SubcategoryModal";
-
-const mockItems = Array(20)
-  .fill(0)
-  .map((_, idx) => ({
-    id: idx.toString(),
-    name: "財團法人流浪動物基金會",
-    description: "團體簡介團體簡介團體簡介團體簡介",
-    imageUrl: "/logo.png",
-  }));
+import type { DonationItem } from "@/types/interfaces";
 
 export default function DonationsPage() {
+  const [items, setItems] = useState<DonationItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+
   const [selectedTab, setSelectedTab] = useState("公益團體");
-  const [searchQuery, setSearchQuery] = useState("");
   const [subcategory, setSubcategory] = useState("全部");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showSubSelector, setShowSubSelector] = useState(false);
 
-  const filteredItems = searchQuery
-    ? mockItems.filter((item) => item.name.includes(searchQuery))
-    : mockItems;
+  const observerRef = useRef<HTMLDivElement | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (loading || !hasMore) return;
+
+    setLoading(true);
+
+    try {
+      const res = await axios.get(
+        `http://localhost:3001/donations?type=project&page=${page}&limit=10`
+      );
+      const newItems = res.data.data;
+      const total = res.data.total;
+
+      setItems((prev) => [...prev, ...newItems]);
+      setHasMore(items.length + newItems.length < total);
+      setPage((prev) => prev + 1);
+    } catch (err) {
+      console.error("Error fetching:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, loading, hasMore, items]);
+
+  // IntersectionObserver 觸發下一頁
+  useEffect(() => {
+    const intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          fetchData();
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    if (observerRef.current) {
+      intersectionObserver.observe(observerRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        intersectionObserver.unobserve(observerRef.current);
+      }
+    };
+  }, [fetchData, hasMore, loading]);
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-50">
@@ -41,11 +81,22 @@ export default function DonationsPage() {
           {subcategory} ▼
         </button>
 
-        <Search onSearch={setSearchQuery} />
+        <Search
+          onSearch={(val) => {
+            setSearchQuery(val);
+            setItems([]);
+            setPage(1);
+            setHasMore(true);
+          }}
+        />
       </div>
 
       <div className="px-4 pb-8">
-        <List items={filteredItems} />
+        <List items={items} />
+        {loading && (
+          <p className="text-center text-sm text-gray-400">載入中...</p>
+        )}
+        <div ref={observerRef} className="h-4" />
       </div>
 
       {showSubSelector && (
