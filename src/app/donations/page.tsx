@@ -6,7 +6,7 @@ import List from "@/app/donations/components/List";
 import Tabs from "@/app/donations/components/Tabs";
 import Search from "@/app/donations/components/Search";
 import SubcategoryModal from "@/app/donations/components/SubcategoryModal";
-import type { DonationItem } from "@/types/interfaces";
+import type { DonationItem, Category } from "@/types/interfaces";
 import { DonationType } from "@/types/enum";
 
 const tabs = [
@@ -15,40 +15,14 @@ const tabs = [
   { id: DonationType.PRODUCT, name: "義賣商品" },
 ];
 
-const categories = [
-  {
+export default function DonationsPage() {
+  const ALL_CATEGORY_OBJECT = {
     id: 0,
     name: "全部",
     description: "All",
-  },
-  {
-    id: 1,
-    name: "教育議題提倡",
-    description: "Projects related to education",
-  },
-  {
-    id: 2,
-    name: "特殊醫病",
-    description: "Healthcare and medical-related donations",
-  },
-  {
-    id: 3,
-    name: "環境保護",
-    description: "Environmental protection and sustainability",
-  },
-  {
-    id: 4,
-    name: "動物保護",
-    description: "Animal rescue and care",
-  },
-  {
-    id: 5,
-    name: "社區發展",
-    description: "Community development and support",
-  },
-];
+  };
+  const LIMIT = 10;
 
-export default function DonationsPage() {
   const [items, setItems] = useState<DonationItem[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -57,13 +31,35 @@ export default function DonationsPage() {
   const [selectedTab, setSelectedTab] = useState<DonationType>(
     DonationType.GROUP
   );
-  const [subcategory, setSubcategory] = useState<number>(0); // 用 0 來當作全部是不是不好？
+  const [subcategory, setSubcategory] = useState<number>(
+    ALL_CATEGORY_OBJECT.id
+  );
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showSubSelector, setShowSubSelector] = useState<boolean>(false);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const observerRef = useRef<HTMLDivElement | null>(null);
 
-  const LIMIT = 10;
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await axios.get(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/categories`
+        );
+
+        // 預防 API 回傳中有 id === ALL_CATEGORY_ID 的分類，預排除這些項目以避免重複
+        const filteredCategories = res.data.filter(
+          (cat: Category) => cat.id !== ALL_CATEGORY_OBJECT.id
+        );
+
+        setCategories([ALL_CATEGORY_OBJECT, ...filteredCategories]);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     setItems([]);
