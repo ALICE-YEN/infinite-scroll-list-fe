@@ -7,24 +7,11 @@ import Tabs from "@/app/donations/components/Tabs";
 import Search from "@/app/donations/components/Search";
 import SubcategoryModal from "@/app/donations/components/SubcategoryModal";
 import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
+import { TABS, ALL_CATEGORY_OBJECT, LIMIT } from "@/utils/constants";
 import type { DonationItem, Category } from "@/types/interfaces";
 import { DonationType } from "@/types/enum";
 
-const tabs = [
-  { id: DonationType.GROUP, name: "公益團體" },
-  { id: DonationType.PROJECT, name: "捐款專案" },
-  { id: DonationType.PRODUCT, name: "義賣商品" },
-];
-
-const ALL_CATEGORY_OBJECT = {
-  id: 0,
-  name: "全部",
-  description: "All",
-};
-
 export default function DonationsPage() {
-  const LIMIT = 10;
-
   const [items, setItems] = useState<DonationItem[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -110,7 +97,7 @@ export default function DonationsPage() {
       </header>
 
       <Tabs
-        tabs={tabs}
+        tabs={TABS}
         selectedTab={selectedTab}
         onTabChange={setSelectedTab}
       />
@@ -130,7 +117,7 @@ export default function DonationsPage() {
         />
       </div>
 
-      <div className="px-4 pb-8">
+      <div className="px-4">
         <List items={items} />
         {loading && (
           <p className="text-center text-sm text-gray-400">載入中...</p>

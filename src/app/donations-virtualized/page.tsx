@@ -1,30 +1,22 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
-import List from "@/app/donations/components/List";
 import Tabs from "@/app/donations/components/Tabs";
 import Search from "@/app/donations/components/Search";
 import SubcategoryModal from "@/app/donations/components/SubcategoryModal";
 import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
+import {
+  TABS,
+  ALL_CATEGORY_OBJECT,
+  LIMIT,
+  ITEM_HEIGHT,
+  BUFFER,
+} from "@/utils/constants";
 import type { DonationItem, Category } from "@/types/interfaces";
 import { DonationType } from "@/types/enum";
 
-const tabs = [
-  { id: DonationType.GROUP, name: "公益團體" },
-  { id: DonationType.PROJECT, name: "捐款專案" },
-  { id: DonationType.PRODUCT, name: "義賣商品" },
-];
-
-const ALL_CATEGORY_OBJECT = {
-  id: 0,
-  name: "全部",
-  description: "All",
-};
-
 export default function DonationsPage() {
-  const LIMIT = 10;
-
   const [items, setItems] = useState<DonationItem[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -39,6 +31,10 @@ export default function DonationsPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showSubSelector, setShowSubSelector] = useState<boolean>(false);
   const [categories, setCategories] = useState<Category[]>([]);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(600);
 
   const fetchData = useCallback(async () => {
     if (loading || !hasMore) return;
@@ -103,14 +99,31 @@ export default function DonationsPage() {
     setHasMore(true);
   }, [selectedTab, searchQuery, subcategory]);
 
+  useEffect(() => {
+    const updateHeight = () => {
+      if (containerRef.current) {
+        setContainerHeight(containerRef.current.getBoundingClientRect().height);
+      }
+    };
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
+  }, []);
+
+  const totalHeight = items.length * ITEM_HEIGHT;
+  const visibleCount = Math.ceil(containerHeight / ITEM_HEIGHT);
+  const startIndex = Math.floor(scrollTop / ITEM_HEIGHT);
+  const endIndex = Math.min(startIndex + visibleCount + BUFFER, items.length);
+  const visibleItems = items.slice(startIndex, endIndex);
+
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-50">
       <header className="bg-red-600 text-white text-center py-3 font-semibold sticky top-0 z-50">
-        所有捐款項目
+        Virtualized 捐款項目
       </header>
 
       <Tabs
-        tabs={tabs}
+        tabs={TABS}
         selectedTab={selectedTab}
         onTabChange={setSelectedTab}
       />
@@ -123,15 +136,53 @@ export default function DonationsPage() {
           {categories.find((category) => category.id === subcategory)?.name}▼
         </button>
 
-        <Search
-          onSearch={(val) => {
-            setSearchQuery(val);
-          }}
-        />
+        <Search onSearch={(val) => setSearchQuery(val)} />
       </div>
 
-      <div className="px-4 pb-8">
-        <List items={items} />
+      <div
+        ref={containerRef}
+        className="px-4 overflow-y-auto"
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+        style={{ height: "calc(100vh - 148.5px)" }}
+      >
+        {/* relative：提供定位基準，不讓絕對定位跑到頁面外面 */}
+        {/* totalHeight：讓 scroll bar 看起來像整份資料都存在一樣 */}
+        <div style={{ height: totalHeight, position: "relative" }}>
+          <div
+            style={{
+              position: "absolute",
+              top: startIndex * ITEM_HEIGHT, // 模擬 item 應該出現在整份清單的絕對位置
+              left: 0,
+              right: 0,
+            }}
+          >
+            {visibleItems.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  height: ITEM_HEIGHT,
+                  marginBottom: "12px",
+                }}
+                className="flex items-start space-x-3 p-3 rounded bg-white shadow-sm"
+              >
+                <img
+                  src={item.imageUrl}
+                  alt={item.name}
+                  className="w-12 h-12 rounded object-cover"
+                />
+                <div>
+                  <h3 className="font-medium text-sm text-gray-900">
+                    {item.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 line-clamp-2">
+                    {item.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {loading && (
           <p className="text-center text-sm text-gray-400">載入中...</p>
         )}
