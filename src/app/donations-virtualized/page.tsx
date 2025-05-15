@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
+import List from "@/app/donations/components/List";
 import Tabs from "@/app/donations/components/Tabs";
 import Search from "@/app/donations/components/Search";
 import SubcategoryModal from "@/app/donations/components/SubcategoryModal";
@@ -35,6 +36,12 @@ export default function DonationsPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(600);
+
+  const totalHeight = items.length * ITEM_HEIGHT;
+  const visibleCount = Math.ceil(containerHeight / ITEM_HEIGHT);
+  const startIndex = Math.floor(scrollTop / ITEM_HEIGHT);
+  const endIndex = Math.min(startIndex + visibleCount + BUFFER, items.length);
+  const visibleItems = items.slice(startIndex, endIndex);
 
   const fetchData = useCallback(async () => {
     if (loading || !hasMore) return;
@@ -70,7 +77,18 @@ export default function DonationsPage() {
     }
   }, [page, loading, hasMore, items, selectedTab, subcategory, searchQuery]);
 
-  const intersectionRef = useIntersectionObserver(fetchData);
+  const intersectionRef = useIntersectionObserver(fetchData); // 它是獨立 DOM，與 virtualized list 無關
+
+  useEffect(() => {
+    const updateHeight = () => {
+      if (containerRef.current) {
+        setContainerHeight(containerRef.current.getBoundingClientRect().height);
+      }
+    };
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
+  }, []);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -98,23 +116,6 @@ export default function DonationsPage() {
     setPage(1);
     setHasMore(true);
   }, [selectedTab, searchQuery, subcategory]);
-
-  useEffect(() => {
-    const updateHeight = () => {
-      if (containerRef.current) {
-        setContainerHeight(containerRef.current.getBoundingClientRect().height);
-      }
-    };
-    updateHeight();
-    window.addEventListener("resize", updateHeight);
-    return () => window.removeEventListener("resize", updateHeight);
-  }, []);
-
-  const totalHeight = items.length * ITEM_HEIGHT;
-  const visibleCount = Math.ceil(containerHeight / ITEM_HEIGHT);
-  const startIndex = Math.floor(scrollTop / ITEM_HEIGHT);
-  const endIndex = Math.min(startIndex + visibleCount + BUFFER, items.length);
-  const visibleItems = items.slice(startIndex, endIndex);
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-gray-50">
@@ -156,30 +157,12 @@ export default function DonationsPage() {
               right: 0,
             }}
           >
-            {visibleItems.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  height: ITEM_HEIGHT,
-                  marginBottom: "12px",
-                }}
-                className="flex items-start space-x-3 p-3 rounded bg-white shadow-sm"
-              >
-                <img
-                  src={item.imageUrl}
-                  alt={item.name}
-                  className="w-12 h-12 rounded object-cover"
-                />
-                <div>
-                  <h3 className="font-medium text-sm text-gray-900">
-                    {item.name}
-                  </h3>
-                  <p className="text-xs text-gray-500 line-clamp-2">
-                    {item.description}
-                  </p>
-                </div>
-              </div>
-            ))}
+            <List
+              items={visibleItems}
+              itemWrapperStyle={{
+                height: ITEM_HEIGHT,
+              }}
+            />
           </div>
         </div>
 

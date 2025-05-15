@@ -1,13 +1,18 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import List from "@/app/donations/components/List";
 import Tabs from "@/app/donations/components/Tabs";
 import Search from "@/app/donations/components/Search";
 import SubcategoryModal from "@/app/donations/components/SubcategoryModal";
 import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
-import { TABS, ALL_CATEGORY_OBJECT, LIMIT } from "@/utils/constants";
+import {
+  TABS,
+  ALL_CATEGORY_OBJECT,
+  LIMIT,
+  ITEM_HEIGHT,
+} from "@/utils/constants";
 import type { DonationItem, Category } from "@/types/interfaces";
 import { DonationType } from "@/types/enum";
 
@@ -26,6 +31,10 @@ export default function DonationsPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showSubSelector, setShowSubSelector] = useState<boolean>(false);
   const [categories, setCategories] = useState<Category[]>([]);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const totalHeight = items.length * ITEM_HEIGHT;
 
   const fetchData = useCallback(async () => {
     if (loading || !hasMore) return;
@@ -110,19 +119,26 @@ export default function DonationsPage() {
           {categories.find((category) => category.id === subcategory)?.name}▼
         </button>
 
-        <Search
-          onSearch={(val) => {
-            setSearchQuery(val);
-          }}
-        />
+        <Search onSearch={(val) => setSearchQuery(val)} />
       </div>
 
-      <div className="px-4">
-        <List items={items} />
-        {loading && (
-          <p className="text-center text-sm text-gray-400">載入中...</p>
-        )}
-        <div ref={intersectionRef} className="h-4" />
+      <div
+        ref={containerRef}
+        className="px-4 overflow-y-auto"
+        style={{ height: "calc(100vh - 148.5px)" }}
+      >
+        <div style={{ height: totalHeight, position: "relative" }}>
+          <List
+            items={items}
+            itemWrapperStyle={{
+              height: ITEM_HEIGHT,
+            }}
+          />
+          {loading && (
+            <p className="text-center text-sm text-gray-400">載入中...</p>
+          )}
+          <div ref={intersectionRef} className="h-4" />
+        </div>
       </div>
 
       {showSubSelector && (
