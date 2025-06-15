@@ -57,7 +57,14 @@ export default function DonationsPage() {
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/donations?${params.toString()}`
       );
 
-      const newItems = res.data.data;
+      const rawItems = res.data.data;
+      const newItems: DonationItem[] = rawItems.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        imageUrl: item.image_url,
+      }));
+
       const total = res.data.meta.total;
 
       setItems((prev) => [...prev, ...newItems]);

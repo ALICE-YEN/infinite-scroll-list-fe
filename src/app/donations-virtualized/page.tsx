@@ -7,6 +7,7 @@ import Tabs from "@/app/donations/components/Tabs";
 import Search from "@/app/donations/components/Search";
 import SubcategoryModal from "@/app/donations/components/SubcategoryModal";
 import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
+import { useVirtualList } from "@/hooks/useVirtualList";
 import {
   TABS,
   ALL_CATEGORY_OBJECT,
@@ -34,14 +35,14 @@ export default function DonationsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scrollTop, setScrollTop] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(600);
 
   const totalHeight = items.length * ITEM_HEIGHT;
-  const visibleCount = Math.ceil(containerHeight / ITEM_HEIGHT);
-  const startIndex = Math.floor(scrollTop / ITEM_HEIGHT);
-  const endIndex = Math.min(startIndex + visibleCount + BUFFER, items.length);
-  const visibleItems = items.slice(startIndex, endIndex);
+  const { visibleItems, startIndex, setScrollTop } = useVirtualList({
+    items,
+    itemHeight: ITEM_HEIGHT,
+    buffer: BUFFER,
+    containerRef,
+  });
 
   const fetchData = useCallback(async () => {
     if (loading || !hasMore) return;
@@ -64,7 +65,13 @@ export default function DonationsPage() {
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/donations?${params.toString()}`
       );
 
-      const newItems = res.data.data;
+      const rawItems = res.data.data;
+      const newItems: DonationItem[] = rawItems.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        imageUrl: item.image_url,
+      }));
       const total = res.data.meta.total;
 
       setItems((prev) => [...prev, ...newItems]);
@@ -78,17 +85,6 @@ export default function DonationsPage() {
   }, [page, loading, hasMore, items, selectedTab, subcategory, searchQuery]);
 
   const intersectionRef = useIntersectionObserver(fetchData); // 它是獨立 DOM，與 virtualized list 無關
-
-  useEffect(() => {
-    const updateHeight = () => {
-      if (containerRef.current) {
-        setContainerHeight(containerRef.current.getBoundingClientRect().height);
-      }
-    };
-    updateHeight();
-    window.addEventListener("resize", updateHeight);
-    return () => window.removeEventListener("resize", updateHeight);
-  }, []);
 
   useEffect(() => {
     const fetchCategories = async () => {
